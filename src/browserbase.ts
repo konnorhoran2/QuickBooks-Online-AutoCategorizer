@@ -16,8 +16,14 @@ export async function createBrowserSession(): Promise<BrowserSession> {
 
   const bb = new Browserbase({ apiKey });
 
-  const session = await bb.sessions.create({ projectId });
-  logger.info({ sessionId: session.id }, 'Browserbase session created');
+  const session = await bb.sessions.create({ 
+    projectId,
+    proxies: process.env.BROWSERBASE_PROXIES === 'true',
+  });
+  logger.info({ 
+    sessionId: session.id, 
+    proxies: process.env.BROWSERBASE_PROXIES === 'true' 
+  }, 'Browserbase session created');
 
   // Connect Playwright to the remote session over CDP
   const browser: Browser = await chromium.connectOverCDP(session.connectUrl);

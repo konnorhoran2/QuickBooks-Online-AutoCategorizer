@@ -2,29 +2,29 @@ import type { Page } from 'playwright-core';
 import { QboSelectors } from './selectors';
 import { BankTransaction } from '../types';
 import { logger } from '../logger';
+import { NAV_TIMEOUT } from '../config/constants';
 
 export async function gotoBankFeed(page: Page): Promise<void> {
-  const navTimeout = 90000;
 
   logger.info('Waiting for QboSelectors.nav.clientHomepage');
-  await page.waitForSelector(QboSelectors.nav.clientHomepage, { timeout: 180000 });
+  await page.waitForSelector(QboSelectors.nav.clientHomepage, { timeout: NAV_TIMEOUT * 2 });
   logger.info('QboSelectors.nav.clientHomepage found, clicking');
   await page.click(QboSelectors.nav.clientHomepage);
   logger.info('Clicked QboSelectors.nav.clientHomepage');
 
   // Wait for automatic redirect to homepage
   logger.info('Waiting for automatic redirect to homepage...');
-  await page.waitForURL('**/app/homepage**', { timeout: 90000 });
+  await page.waitForURL('**/app/homepage**', { timeout: NAV_TIMEOUT });
   logger.info('Homepage loaded after client selection');
 
   logger.info('Navigating to banking page');
-  await page.goto('https://qbo.intuit.com/app/banking?jobId=accounting', { waitUntil: 'domcontentloaded', timeout: navTimeout });
+  await page.goto('https://qbo.intuit.com/app/banking?jobId=accounting', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
   logger.info('Banking page loaded');
 }
 
 export async function readForReviewTransactions(page: Page, limit: number = 50): Promise<BankTransaction[]> {
   logger.info('Reading for review transactions');
-  await page.waitForSelector(QboSelectors.bankFeed.transactionRows, { timeout: 90000 });
+  await page.waitForSelector(QboSelectors.bankFeed.transactionRows, { timeout: NAV_TIMEOUT });
   logger.info('QboSelectors.bankFeed.transactionRows found');
   const rows = await page.$$(QboSelectors.bankFeed.transactionRows);
   logger.info({ rowCount: rows.length - 1 }, 'Found rows');
