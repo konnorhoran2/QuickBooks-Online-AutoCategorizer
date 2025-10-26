@@ -16,7 +16,7 @@ export type CategorizationDecision = {
   category: string;
   confidence: number; // 0..1
   reason?: string;
-  action: 'auto_accept' | 'mark_for_review' | 'skip';
+  action: 'add' | 'match' | 'mark_for_review';
 };
 
 

@@ -45,34 +45,50 @@ export async function readForReviewTransactions(page: Page, limit: number = 50):
   return results;
 }
 
-export async function setTransactionCategoryAndAccept(page: Page, rowHandle: string, category: string): Promise<void> {
+export async function setTransactionCategoryAndAccept(page: Page, rowHandle: string, category: string, action: 'add' | 'match' = 'add'): Promise<void> {
   // rowHandle can be a selector or data-id. For simplicity assume it is a selector.
   const row = await page.$(rowHandle);
   if (!row) {
     logger.warn({ rowHandle }, 'Row not found for category update');
     return;
   }
+  
+  // try {
+  //   // Try to edit the category cell
+  //   const categoryCell = await row.$(QboSelectors.bankFeed.category);
+  //   if (categoryCell) {
+  //     await categoryCell.click();
+  //     await page.keyboard.type(category);
+  //     await page.keyboard.press('Enter');
+  //     logger.info({ category, rowHandle, action }, 'Updated category');
+  //   }
+  // } catch (e) {
+  //   logger.warn({ e, rowHandle }, 'Failed to update category');
+  // }
+  
+  // Handle different actions based on the decision
   try {
-    // Try to edit the category cell
-    const categoryCell = await row.$(QboSelectors.bankFeed.category);
-    if (categoryCell) {
-      await categoryCell.click();
-      await page.keyboard.type(category);
-      await page.keyboard.press('Enter');
-      logger.info({ category, rowHandle }, 'Updated category');
+    if (action === 'add') {
+      // For "add" action, look for "Add" button
+      const addButton = await row.$('button:has-text("Add")');
+      if (addButton) {
+        await addButton.click();
+        logger.info({ rowHandle, action }, 'Clicked Add button for new category');
+      } else {
+        logger.warn({ rowHandle, action }, 'Add button not found');
+      }
+    } else if (action === 'match') {
+      // For "match" action, look for "Match" button
+      const matchButton = await row.$('button:has-text("Match")');
+      if (matchButton) {
+        await matchButton.click();
+        logger.info({ rowHandle, action }, 'Clicked Match button for revenue transaction');
+      } else {
+        logger.warn({ rowHandle, action }, 'Match button not found');
+      }
     }
   } catch (e) {
-    logger.warn({ e, rowHandle }, 'Failed to update category');
-  }
-  // Click an Accept button in the row if present
-  try {
-    const accept = await row.$('button:has-text("Accept")');
-    if (accept) {
-      await accept.click();
-      logger.info({ rowHandle }, 'Accepted transaction');
-    }
-  } catch (e) {
-    logger.warn({ e, rowHandle }, 'Failed to accept transaction');
+    logger.warn({ e, rowHandle, action }, `Failed to execute ${action} action`);
   }
 }
 
