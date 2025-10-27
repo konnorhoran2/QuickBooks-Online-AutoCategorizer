@@ -30,28 +30,64 @@ export async function runOnce(): Promise<void> {
     const txns = await readForReviewTransactions(session.page, 50);
     summary.push(`Loaded ${txns.length} transactions For review`);
 
-    let autoAccepted = 0;
+    let added = 0;
+    let matched = 0;
+    let markedForReview = 0;
+    
     for (const t of txns) {
       const byRule = categorizeByRules(t);
       const decision = byRule ?? (await categorizeWithAI(t));
       if (!decision) {
         logger.info({ t }, 'No decision');
+        markedForReview += 1;
         continue;
       }
+      
       logger.info({ t, decision }, 'Decision');
-      if (decision.action === 'auto_accept' && decision.confidence >= 0.85 && t.rowSelector) {
+      
+      // Execute action based on decision - Target 90% confidence for reliable actions
+      if (decision.action === 'add' && decision.confidence >= 0.9 && t.rowSelector) {
         try {
-          // await setTransactionCategoryAndAccept(session.page, t.rowSelector, decision.category);
-          autoAccepted += 1;
-          logger.info({ t, decision }, 'Auto-accepted (simulated)');
+          await setTransactionCategoryAndAccept(session.page, t.rowSelector, decision.category, 'add');
+          added += 1;
+          logger.info({ t, decision }, 'Added new category with 90%+ confidence');
         } catch (e) {
-          logger.warn({ e, row: t.rowSelector }, 'Failed to accept row');
+          logger.warn({ e, row: t.rowSelector }, 'Failed to add category');
+        }
+      } else if (decision.action === 'match' && decision.confidence >= 0.9 && t.rowSelector) {
+        try {
+          await setTransactionCategoryAndAccept(session.page, t.rowSelector, decision.category, 'match');
+          matched += 1;
+          logger.info({ t, decision }, 'Matched revenue transaction with 90%+ confidence');
+        } catch (e) {
+          logger.warn({ e, row: t.rowSelector }, 'Failed to match transaction');
+        }
+      } else if (decision.action === 'add' && decision.confidence >= 0.7 && t.rowSelector) {
+        // Allow 70%+ confidence for add actions as fallback
+        try {
+          await setTransactionCategoryAndAccept(session.page, t.rowSelector, decision.category, 'add');
+          added += 1;
+          logger.info({ t, decision }, 'Added new category with 70%+ confidence');
+        } catch (e) {
+          logger.warn({ e, row: t.rowSelector }, 'Failed to add category');
+        }
+      } else if (decision.action === 'match' && decision.confidence >= 0.7 && t.rowSelector) {
+        // Allow 70%+ confidence for match actions as fallback
+        try {
+          await setTransactionCategoryAndAccept(session.page, t.rowSelector, decision.category, 'match');
+          matched += 1;
+          logger.info({ t, decision }, 'Matched revenue transaction with 70%+ confidence');
+        } catch (e) {
+          logger.warn({ e, row: t.rowSelector }, 'Failed to match transaction');
         }
       } else {
-        logger.info({ t, confidence: decision?.confidence }, 'Skipping auto-accept (no row selector or low confidence)');
+        markedForReview += 1;
+        logger.info({ t, confidence: decision?.confidence, action: decision?.action }, 'Marked for review (low confidence or no row selector)');
       }
     }
-    summary.push(`Auto-accepted (simulated) ${autoAccepted}`);
+    summary.push(`Added new categories: ${added}`);
+    summary.push(`Matched revenue: ${matched}`);
+    summary.push(`Marked for review: ${markedForReview}`);
     logger.info({ summary }, 'Run completed successfully');
   } catch (e) {
     logger.error({ e }, 'Run failed');
